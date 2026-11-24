@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SensoryMap Pro — IEC 61672-1 A-Weighted Ambient Noise Analyzer</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .pulse-ring {
+      animation: pulseRing 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    @keyframes pulseRing {
+      0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.35); }
+      70% { box-shadow: 0 0 0 18px rgba(14, 165, 233, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between">
+
+  <!-- Top Engineering Header -->
+  <header class="bg-slate-950 text-white border-b border-slate-800 sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center font-extrabold text-white shadow-sm">
+          SM
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-sm sm:text-base font-bold tracking-tight">SensoryMap Pro — Acoustic Analyzer</h1>
+            <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              IEC 61672-1 dB(A)
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400">GLB 300 · Group 3 · Ali Buğrahan Dalgalı · True Sample-Accurate L_Aeq Engine</p>
+        </div>
+      </div>
+
+      <!-- Mode Switcher & Calibration Trigger -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-700 text-xs">
+          <button id="modeUserBtn" type="button" class="px-3 py-1.5 rounded-md font-semibold bg-sky-600 text-white transition">
+            Public Mode (10s)
+          </button>
+          <button id="modeLabBtn" type="button" class="px-3 py-1.5 rounded-md font-medium text-slate-300 hover:text-white transition">
+            Week 3 Lab Mode (30s)
+          </button>
+        </div>
+        <button id="openCalibModalBtn" type="button" class="text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg transition">
+          1-Point Calibration
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="max-w-5xl w-full mx-auto px-4 py-5 flex-1 space-y-5">
+
+    <!-- DSP Signal Chain & Privacy Status Strip -->
+    <section class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <span class="inline-flex items-center gap-1.5 font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          Zero-Recording Privacy: In-Memory Only
+        </span>
+        <span id="dspFilterBadge" class="inline-flex items-center gap-1.5 font-mono text-sky-900 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-md">
+          Filter: IEC 61672-1 A-Weighting (6-Stage IIR)
+        </span>
+        <span id="calibStatusBadge" class="inline-flex items-center gap-1.5 font-mono text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
+          Offset: +94.0 dB (Uncalibrated Default)
+        </span>
+      </div>
+      <span id="engineBadge" class="text-[11px] font-mono text-slate-500">
+        Engine: AudioWorklet Ready
+      </span>
+    </section>
+
+    <!-- Venue & Time Window Selector -->
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900">Pilot Venue &amp; Assessment Window</h2>
+          <p class="text-xs text-slate-500">All 13 finalized pilot venues. Matches the "Quiet" filter only if Busy-Hour L_Aeq is Quiet (&lt; 50 dB(A)) and outside the ±3 dB Near-Limit zone (&lt; 47.0 dB(A)).</p>
+        </div>
+        <span id="quietMatchBadge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 self-start sm:self-center">
+          Quiet Filter: Pending
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
+        <div class="space-y-1">
+          <label for="venueSelect" class="block font-semibold text-slate-700">Pilot Venue (13 Locations)</label>
+          <select id="venueSelect" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <option value="Abdullah Gül University (AGÜ) Library">1. Abdullah Gül University (AGÜ) Library</option>
+            <option value="Abdullah Gül Presidential Museum and Library">2. Abdullah Gül Presidential Museum and Library</option>
+            <option value="Sümer Campus Main Entrance (Sümer Girişi)">3. Sümer Campus Main Entrance (Sümer Girişi)</option>
+            <option value="VakıfBank Entrance / Laboratory Building">4. VakıfBank Entrance / Laboratory Building</option>
+            <option value="Çelik A Building">5. Çelik A Building</option>
+            <option value="Çelik B Building">6. Çelik B Building</option>
+            <option value="Factory Building (Blocks A–F) Corridors">7. Factory Building (Blocks A–F) Corridors</option>
+            <option value="Factory Building Dining Hall">8. Factory Building Dining Hall</option>
+            <option value="Ambar Building">9. Ambar Building</option>
+            <option value="Ambar Building Dining Hall">10. Ambar Building Dining Hall</option>
+            <option value="AGÜ Fitness Center">11. AGÜ Fitness Center</option>
+            <option value="The House Cafe">12. The House Cafe</option>
+            <option value="AGÜ Starbucks">13. AGÜ Starbucks</option>
+          </select>
+        </div>
+
+        <div class="space-y-1">
+          <label for="windowSelect" class="block font-semibold text-slate-700">Measurement Time Window</label>
+          <select id="windowSelect" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <option value="BUSY">Busy Hour (Peak Occupancy — Quiet Filter Rule)</option>
+            <option value="CALM">Calm Hour (Off-Peak Context)</option>
+          </select>
+        </div>
+
+        <div class="space-y-1">
+          <label for="deviceProfileInput" class="block font-semibold text-slate-700">Test Device Label (for Logs)</label>
+          <input id="deviceProfileInput" type="text" value="Phone 1 (iPhone / Browser)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Primary Acoustic Meter & Real-Time Chart Grid -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+      <!-- Left Column: Main Meter & Controls -->
+      <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 id="meterHeading" class="text-base font-bold text-slate-900">L_Aeq,10s Assessment</h2>
+            <p id="meterSubheading" class="text-xs text-slate-500">Public User Mode — Categorical Range Only</p>
+          </div>
+          <span id="statusPill" class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+            <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span id="statusText">Ready</span>
+          </span>
+        </div>
+
+        <!-- Circular Meter Indicator -->
+        <div class="flex flex-col items-center justify-center py-2 space-y-4">
+          <div id="meterCircle" class="w-48 h-48 rounded-full border-8 border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-center px-4 transition-all duration-300">
+            <span id="rangeLabel" class="text-xl font-extrabold text-slate-700">Awaiting Input</span>
+            <span id="rangeSubtext" class="text-xs text-slate-500 mt-1">Press Start to sample</span>
+            <span id="labDbBigReadout" class="hidden mt-1.5 font-mono text-sm font-bold text-slate-700 bg-white/80 px-2.5 py-0.5 rounded border border-slate-200">
+              --.- dB(A)
+            </span>
+            <span id="nearLimitBadge" class="hidden mt-2 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900">
+              Near Limit (±3 dB)
+            </span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full space-y-1.5">
+            <div class="flex justify-between text-xs text-slate-500 font-medium">
+              <span id="timerLabel">Elapsed: 0.0 / 10.0 s</span>
+              <span id="sampleCountLabel">Samples: 0</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+              <div id="progressBar" class="h-full bg-sky-600 transition-all duration-100" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="w-full flex flex-col gap-2 pt-1">
+            <div class="flex gap-2">
+              <button id="startMeasureBtn" type="button" class="flex-1 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-semibold text-sm px-4 py-3 rounded-xl shadow-sm transition">
+                Measure Ambient Sound (10s)
+              </button>
+              <button id="stopMeasureBtn" type="button" disabled class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed">
+                Stop
+              </button>
+            </div>
+            <button id="demoSimBtn" type="button" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-medium text-xs px-3 py-2.5 rounded-xl transition">
+              Simulate Acoustic Profile (Quiet / Near-Limit / Moderate / Loud)
+            </button>
+          </div>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorBox" class="hidden bg-rose-50 border border-rose-200 text-rose-900 rounded-xl p-3 text-xs space-y-1">
+          <p class="font-semibold" id="errorTitle">Microphone Access Unavailable</p>
+          <p id="errorDesc"></p>
+        </div>
+      </div>
+
+      <!-- Right Column: Live Acoustic Time-History Chart & Telemetry -->
+      <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Real-Time Acoustic Profile &amp; Threshold Bands</h2>
+            <p class="text-xs text-slate-500">Live L_AF (125 ms Fast) vs. cumulative L_Aeq with 50 / 70 dB(A) limits and shaded ±3 dB Near-Limit zones.</p>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] font-medium text-slate-600">
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-0.5 bg-sky-500 inline-block"></span> L_AF (Fast)</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-1 bg-indigo-700 inline-block rounded"></span> L_Aeq (Avg)</span>
+          </div>
+        </div>
+
+        <!-- Canvas 2D Time-History Chart -->
+        <div class="relative w-full h-56 bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+          <canvas id="acousticChart" class="w-full h-full block"></canvas>
+        </div>
+
+        <!-- Decision & Safe-Matching Banner -->
+        <div id="decisionBanner" class="hidden rounded-xl p-3.5 text-xs space-y-1 border">
+          <p id="decisionTitle" class="font-bold text-sm"></p>
+          <p id="decisionDesc"></p>
+        </div>
+
+        <!-- Live Engineering Telemetry Grid (Visible in Lab Mode, Compact Summary in Public Mode) -->
+        <div id="telemetryGrid" class="bg-slate-900 text-slate-100 rounded-xl p-3.5 font-mono text-xs grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div>
+            <span class="text-slate-400 block text-[10px]">L_Aeq (AVG)</span>
+            <span id="diagLaeq" class="font-bold text-sky-300">--.- dB(A)</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px]">L_AF (FAST)</span>
+            <span id="diagLaf" class="font-semibold">--.- dB(A)</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px]">L_Amax / L_Amin</span>
+            <span id="diagMinMax" class="font-semibold">-- / --</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px]">RAW A-dBFS</span>
+            <span id="diagDbfs" class="font-semibold">--.- dBFS</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px]">AGC / FILTERS</span>
+            <span id="diagAgc" class="font-semibold text-emerald-400">Standby</span>
+          </div>
+        </div>
+
+        <!-- 3 Sensory Category Reference Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div id="cardQuiet" class="border border-slate-200 rounded-xl p-3 bg-slate-50/70 transition">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">Quiet</span>
+              <span id="quietBoundText" class="text-[11px] font-semibold text-slate-600">&lt; 50 dB(A)</span>
+            </div>
+            <p class="text-[11px] text-slate-600 mt-1.5">Clear match &lt; 47 dB(A). Near-limit: 47–50 dB(A).</p>
+          </div>
+          <div id="cardModerate" class="border border-slate-200 rounded-xl p-3 bg-slate-50/70 transition">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase text-amber-800 bg-amber-100 px-2 py-0.5 rounded">Moderate</span>
+              <span id="moderateBoundText" class="text-[11px] font-semibold text-slate-600">50–70 dB(A)</span>
+            </div>
+            <p class="text-[11px] text-slate-600 mt-1.5">Both ends included (Mehta et al.). Neutral info.</p>
+          </div>
+          <div id="cardLoud" class="border border-slate-200 rounded-xl p-3 bg-slate-50/70 transition">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase text-rose-800 bg-rose-100 px-2 py-0.5 rounded">Loud</span>
+              <span id="loudBoundText" class="text-[11px] font-semibold text-slate-600">&gt; 70 dB(A)</span>
+            </div>
+            <p class="text-[11px] text-slate-600 mt-1.5">Exceeds raised voice. Comfort indicator only.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Week 3 Reference Comparison & Session Log Table (with CSV Export) -->
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Field Measurement &amp; Week 3 SPL Comparison Log</h3>
+          <p class="text-xs text-slate-500">Enter the reference iPad (NIOSH SLM) LAeq value for any completed trial to auto-calculate ΔdB error and range agreement, then export as CSV.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="exportCsvBtn" type="button" class="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition">
+            Export CSV (H3_Ali_SesKarsilastirma.csv)
+          </button>
+          <button id="clearLogBtn" type="button" class="text-xs text-slate-600 hover:text-slate-900 border border-slate-200 px-2.5 py-1.5 rounded-lg transition">
+            Clear Log
+          </button>
+        </div>
+      </div>
+
+      <!-- Optional Reference NIOSH Input for the Next Measurement -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex flex-wrap items-center gap-3">
+          <label for="refNioshInput" class="font-semibold text-slate-700">Reference iPad (NIOSH LAeq) dB(A):</label>
+          <input id="refNioshInput" type="number" step="0.1" placeholder="e.g. 58.4 (optional)" class="w-40 border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <label class="inline-flex items-center gap-1.5 text-slate-700 font-medium cursor-pointer">
+            <input id="aWeightToggle" type="checkbox" checked class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+            IEC 61672-1 A-Weighting Active
+          </label>
+        </div>
+        <div id="accuracySummary" class="font-mono text-xs text-slate-700 font-semibold">
+          Trials Logged: 0 | Range Agreement: --
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-600 bg-slate-50">
+              <th class="py-2 px-2.5 font-semibold">Time</th>
+              <th class="py-2 px-2.5 font-semibold">Venue &amp; Window</th>
+              <th class="py-2 px-2.5 font-semibold">Device</th>
+              <th class="py-2 px-2.5 font-semibold">Phone L_Aeq</th>
+              <th class="py-2 px-2.5 font-semibold">Ref. NIOSH dB(A)</th>
+              <th class="py-2 px-2.5 font-semibold">ΔdB Error</th>
+              <th class="py-2 px-2.5 font-semibold">Phone Range &amp; Near-Limit</th>
+              <th class="py-2 px-2.5 font-semibold">Match / Quiet Filter</th>
+            </tr>
+          </thead>
+          <tbody id="sessionLogBody" class="divide-y divide-slate-100">
+            <tr>
+              <td colspan="8" class="py-4 px-2.5 text-center text-slate-400">No measurements recorded yet. Run a live 10s/30s test or a simulated profile above.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 1-Point Guided Calibration Modal -->
+  <div id="calibModal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5">
+      <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">1-Point Reference Calibration Wizard (NIOSH SLM)</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Eliminates hardware microphone gain variance across iPhone and Android devices.</p>
+        </div>
+        <button id="closeCalibModalBtn" type="button" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2">&times;</button>
+      </div>
+
+      <div class="bg-sky-50 border border-sky-200 rounded-xl p-3.5 text-xs text-sky-950 space-y-1.5">
+        <p class="font-semibold">How to calibrate for ±1–2 dB(A) accuracy:</p>
+        <ol class="list-decimal list-inside space-y-1">
+          <li>Place this phone side by side (~5 cm) with your reference iPad running <strong>NIOSH Sound Level Meter</strong> (A-weighted, LAeq).</li>
+          <li>Play steady pink noise or sit in a steady ambient room (~55–65 dB(A) works best).</li>
+          <li>Enter the iPad's exact <strong>LAeq dB(A)</strong> reading below and click <strong>Run 5s Auto-Calibration</strong>.</li>
+        </ol>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+        <div class="space-y-1">
+          <label for="calibRefInput" class="block font-semibold text-slate-700">NIOSH iPad Reference LAeq (dB(A))</label>
+          <input id="calibRefInput" type="number" step="0.1" value="60.0" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+        </div>
+        <div class="space-y-1">
+          <label for="manualOffsetInput" class="block font-semibold text-slate-700">Manual Offset Override (dB)</label>
+          <input id="manualOffsetInput" type="number" step="0.1" value="94.0" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+        </div>
+      </div>
+
+      <div id="calibProgressBox" class="hidden bg-slate-900 text-slate-100 rounded-xl p-3 font-mono text-xs space-y-1">
+        <p id="calibProgressText">Sampling reference tone (0.0 / 5.0 s)...</p>
+        <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div id="calibProgressBar" class="h-full bg-amber-400 transition-all duration-100" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+        <button id="saveManualOffsetBtn" type="button" class="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2.5 rounded-lg transition">
+          Save Manual Offset
+        </button>
+        <div class="flex gap-2">
+          <button id="resetOffsetBtn" type="button" class="text-xs font-medium text-rose-700 hover:bg-rose-50 px-3 py-2.5 rounded-lg transition">
+            Reset (94.0)
+          </button>
+          <button id="runAutoCalibBtn" type="button" class="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950 px-4 py-2.5 rounded-lg shadow-sm transition">
+            Run 5s Auto-Calibration
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 mt-6">
+    <div class="max-w-5xl mx-auto px-4 py-3 text-center text-xs text-slate-500">
+      SensoryMap Pro · GLB 300 Group 3 · Real-Time IEC 61672-1 A-Weighted L_Aeq Module · Audio is never recorded or transmitted.
+    </div>
+  </footer>
+
+  <script>
+    // ============================================================================
+    // SENSORYMAP PRO — IEC 61672-1 A-WEIGHTED SAMPLE-ACCURATE L_Aeq ENGINE
+    // Author: Ali Buğrahan Dalgalı | Acoustic Threshold Rules: Sena Nur Tuz
+    // ============================================================================
+    const STORAGE_KEY = 'sensorymap_pro_calibration_v1';
+
+    const CONFIG = {
+      MODE: 'USER',                  // 'USER' (10s) or 'LAB' (30s)
+      DURATION_MS: 10000,            // 10,000 ms in Public Mode; 30,000 ms in Week 3 Lab Mode
+      CALIBRATION_OFFSET_DB: 94.0,   // Calibrated dB(A) = A-weighted dBFS + Offset
+      IS_CALIBRATED: false,
+      CALIBRATED_AT: null,
+      USE_A_WEIGHTING: true,         // IEC 61672-1 6-stage IIR filter
+      THRESHOLD_QUIET_MAX: 50.0,     // Quiet: < 50 dB(A)
+      THRESHOLD_MODERATE_MAX: 70.0,  // Moderate: 50–70 dB(A) (both ends included); Loud: > 70 dB(A)
+      NEAR_LIMIT_MARGIN_DB: 3.0      // ±3 dB near-limit zones: 47–53 dB(A) and 67–73 dB(A)
+    };
+
+    // Runtime state
+    let audioContext = null;
+    let mediaStream = null;
+    let workletNode = null;
+    let analyserNode = null;
+    let fallbackTimer = null;
+    let simTimer = null;
+    let calibTimer = null;
+    let isMeasuring = false;
+    let isCalibrating = false;
+
+    // Sample-accurate accumulators
+    let totalEnergySum = 0.0;
+    let totalSampleCount = 0;
+    let minLafDb = Infinity;
+    let maxLafDb = -Infinity;
+    let startTimeMs = 0;
+    let chartHistory = []; // { tSec, laf, laeq }
+    const sessionLogs = [];
+
+    // DOM References
+    const modeUserBtn = document.getElementById('modeUserBtn');
+    const modeLabBtn = document.getElementById('modeLabBtn');
+    const openCalibModalBtn = document.getElementById('openCalibModalBtn');
+    const closeCalibModalBtn = document.getElementById('closeCalibModalBtn');
+    const calibModal = document.getElementById('calibModal');
+    const calibRefInput = document.getElementById('calibRefInput');
+    const manualOffsetInput = document.getElementById('manualOffsetInput');
+    const saveManualOffsetBtn = document.getElementById('saveManualOffsetBtn');
+    const resetOffsetBtn = document.getElementById('resetOffsetBtn');
+    const runAutoCalibBtn = document.getElementById('runAutoCalibBtn');
+    const calibProgressBox = document.getElementById('calibProgressBox');
+    const calibProgressText = document.getElementById('calibProgressText');
+    const calibProgressBar = document.getElementById('calibProgressBar');
+
+    const dspFilterBadge = document.getElementById('dspFilterBadge');
+    const calibStatusBadge = document.getElementById('calibStatusBadge');
+    const engineBadge = document.getElementById('engineBadge');
+    const venueSelect = document.getElementById('venueSelect');
+    const windowSelect = document.getElementById('windowSelect');
+    const deviceProfileInput = document.getElementById('deviceProfileInput');
+    const quietMatchBadge = document.getElementById('quietMatchBadge');
+
+    const meterHeading = document.getElementById('meterHeading');
+    const meterSubheading = document.getElementById('meterSubheading');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const meterCircle = document.getElementById('meterCircle');
+    const rangeLabel = document.getElementById('rangeLabel');
+    const rangeSubtext = document.getElementById('rangeSubtext');
+    const labDbBigReadout = document.getElementById('labDbBigReadout');
+    const nearLimitBadge = document.getElementById('nearLimitBadge');
+    const timerLabel = document.getElementById('timerLabel');
+    const sampleCountLabel = document.getElementById('sampleCountLabel');
+    const progressBar = document.getElementById('progressBar');
+
+    const startMeasureBtn = document.getElementById('startMeasureBtn');
+    const stopMeasureBtn = document.getElementById('stopMeasureBtn');
+    const demoSimBtn = document.getElementById('demoSimBtn');
+    const errorBox = document.getElementById('errorBox');
+    const errorTitle = document.getElementById('errorTitle');
+    const errorDesc = document.getElementById('errorDesc');
+
+    const decisionBanner = document.getElementById('decisionBanner');
+    const decisionTitle = document.getElementById('decisionTitle');
+    const decisionDesc = document.getElementById('decisionDesc');
+
+    const diagLaeq = document.getElementById('diagLaeq');
+    const diagLaf = document.getElementById('diagLaf');
+    const diagMinMax = document.getElementById('diagMinMax');
+    const diagDbfs = document.getElementById('diagDbfs');
+    const diagAgc = document.getElementById('diagAgc');
+
+    const cardQuiet = document.getElementById('cardQuiet');
+    const cardModerate = document.getElementById('cardModerate');
+    const cardLoud = document.getElementById('cardLoud');
+
+    const refNioshInput = document.getElementById('refNioshInput');
+    const aWeightToggle = document.getElementById('aWeightToggle');
+    const accuracySummary = document.getElementById('accuracySummary');
+    const sessionLogBody = document.getElementById('sessionLogBody');
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
+    const clearLogBtn = document.getElementById('clearLogBtn');
+    const acousticChart = document.getElementById('acousticChart');
+
+    // ============================================================================
+    // 1. PERSISTENT CALIBRATION STORAGE (try/catch safe for Canvas iframe)
+    // ============================================================================
+    function loadSavedCalibration() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed.offset === 'number' && !Number.isNaN(parsed.offset)) {
+            CONFIG.CALIBRATION_OFFSET_DB = parsed.offset;
+            CONFIG.IS_CALIBRATED = Boolean(parsed.isCalibrated);
+            CONFIG.CALIBRATED_AT = parsed.calibratedAt || null;
+          }
+        }
+      } catch (e) {
+        // Ignore storage errors inside restricted sandboxes
+      }
+      updateCalibrationBadge();
+    }
+
+    function saveCalibration(offsetVal, isCalibrated) {
+      CONFIG.CALIBRATION_OFFSET_DB = Number(offsetVal.toFixed(2));
+      CONFIG.IS_CALIBRATED = isCalibrated;
+      CONFIG.CALIBRATED_AT = isCalibrated ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+      manualOffsetInput.value = CONFIG.CALIBRATION_OFFSET_DB.toFixed(1);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          offset: CONFIG.CALIBRATION_OFFSET_DB,
+          isCalibrated: CONFIG.IS_CALIBRATED,
+          calibratedAt: CONFIG.CALIBRATED_AT
+        }));
+      } catch (e) {
+        // Ignore storage errors
+      }
+      updateCalibrationBadge();
+    }
+
+    function updateCalibrationBadge() {
+      manualOffsetInput.value = CONFIG.CALIBRATION_OFFSET_DB.toFixed(1);
+      if (CONFIG.IS_CALIBRATED) {
+        calibStatusBadge.className = 'inline-flex items-center gap-1.5 font-mono text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md';
+        calibStatusBadge.textContent = `Calibrated Offset: +${CONFIG.CALIBRATION_OFFSET_DB.toFixed(1)} dB (${CONFIG.CALIBRATED_AT || 'Saved'})`;
+      } else {
+        calibStatusBadge.className = 'inline-flex items-center gap-1.5 font-mono text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md';
+        calibStatusBadge.textContent = `Offset: +${CONFIG.CALIBRATION_OFFSET_DB.toFixed(1)} dB (Default — Run Calibration)`;
+      }
+    }
+
+    // ============================================================================
+    // 2. IEC 61672-1 A-WEIGHTING DIGITAL IIR FILTER CHAIN (EXACT BILINEAR TRANSFORM)
+    // ============================================================================
+    function makeFirstOrderHP(fc, fs) {
+      const K = Math.tan((Math.PI * fc) / fs);
+      return {
+        b: [1 / (1 + K), -1 / (1 + K)],
+        a: [1.0, (K - 1) / (K + 1)]
+      };
+    }
+
+    function makeFirstOrderLP(fc, fs) {
+      const K = Math.tan((Math.PI * fc) / fs);
+      return {
+        b: [K / (1 + K), K / (1 + K)],
+        a: [1.0, (K - 1) / (K + 1)]
+      };
+    }
+
+    function evalFirstOrderMag(b, a, freq, fs) {
+      const w = (2 * Math.PI * freq) / fs;
+      const cosW = Math.cos(w);
+      const sinW = -Math.sin(w); // e^{-jw}
+      const numRe = b[0] + b[1] * cosW;
+      const numIm = b[1] * sinW;
+      const denRe = a[0] + a[1] * cosW;
+      const denIm = a[1] * sinW;
+      const numMag = Math.hypot(numRe, numIm);
+      const denMag = Math.hypot(denRe, denIm);
+      return numMag / denMag;
+    }
+
+    function buildAWeightingChain(ctx) {
+      const fs = ctx.sampleRate;
+      const stageSpecs = [
+        makeFirstOrderHP(20.598997, fs),
+        makeFirstOrderHP(20.598997, fs),
+        makeFirstOrderHP(107.65265, fs),
+        makeFirstOrderHP(737.86223, fs),
+        makeFirstOrderLP(12194.217, fs),
+        makeFirstOrderLP(12194.217, fs)
+      ];
+
+      let mag1k = 1.0;
+      const nodes = stageSpecs.map(spec => {
+        mag1k *= evalFirstOrderMag(spec.b, spec.a, 1000.0, fs);
+        return ctx.createIIRFilter(spec.b, spec.a);
+      });
+
+      const normGain = ctx.createGain();
+      normGain.gain.value = 1.0 / mag1k; // Exact 0.00 dB gain at 1000 Hz
+
+      for (let i = 0; i < nodes.length - 1; i++) {
+        nodes[i].connect(nodes[i + 1]);
+      }
+      nodes[nodes.length - 1].connect(normGain);
+
+      return { input: nodes[0], output: normGain, sampleRate: fs };
+    }
+
+    // ============================================================================
+    // 3. INLINE AUDIOWORKLET PROCESSOR FOR 100% SAMPLE-ACCURATE L_Aeq INTEGRATION
+    // ============================================================================
+    const WORKLET_CODE = `
+      class LAeqProcessor extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          this.chunkEnergy = 0.0;
+          this.chunkSamples = 0;
+          this.reportIntervalSamples = Math.max(128, Math.round(sampleRate * 0.125)); // 125 ms Fast window (L_AF)
+        }
+        process(inputs) {
+          const input = inputs[0];
+          if (input && input.length > 0) {
+            const channel = input[0];
+            for (let i = 0; i < channel.length; i++) {
+              const s = channel[i];
+              this.chunkEnergy += s * s;
+            }
+            this.chunkSamples += channel.length;
+            if (this.chunkSamples >= this.reportIntervalSamples) {
+              this.port.postMessage({
+                energy: this.chunkEnergy,
+                samples: this.chunkSamples
+              });
+              this.chunkEnergy = 0.0;
+              this.chunkSamples = 0;
+            }
+          }
+          return true;
+        }
+      }
+      registerProcessor('laeq-processor', LAeqProcessor);
+    `;
+
+    // ============================================================================
+    // 4. CLASSIFICATION & SAFE-MATCHING ENGINE (Sena Nur Tuz Justification)
+    // ============================================================================
+    function energyToDbfs(meanSquare) {
+      return 10 * Math.log10(Math.max(meanSquare, 1e-14));
+    }
+
+    function classifyNoise(estDb, timeWindow) {
+      const qLim = CONFIG.THRESHOLD_QUIET_MAX;     // 50.0 dB(A)
+      const mLim = CONFIG.THRESHOLD_MODERATE_MAX;  // 70.0 dB(A)
+      const margin = CONFIG.NEAR_LIMIT_MARGIN_DB;  // ±3.0 dB(A)
+
+      const nearQuiet = Math.abs(estDb - qLim) <= margin;
+      const nearMod = Math.abs(estDb - mLim) <= margin;
+      const isNearLimit = nearQuiet || nearMod;
+
+      let categoryKey = 'LOUD';
+      let label = 'Loud';
+      let rangeText = `Loud (> ${mLim} dB(A))`;
+      let circleClass = 'w-48 h-48 rounded-full border-8 border-rose-500 bg-rose-50 flex flex-col items-center justify-center text-center px-4 transition-all duration-300';
+      let labelClass = 'text-2xl font-extrabold text-rose-800';
+
+      if (estDb < qLim) {
+        categoryKey = 'QUIET';
+        label = 'Quiet';
+        rangeText = `Quiet (< ${qLim} dB(A))`;
+        circleClass = 'w-48 h-48 rounded-full border-8 border-emerald-500 bg-emerald-50 flex flex-col items-center justify-center text-center px-4 transition-all duration-300';
+        labelClass = 'text-2xl font-extrabold text-emerald-800';
+      } else if (estDb <= mLim) {
+        // Both ends included: 50.0 <= dB(A) <= 70.0
+        categoryKey = 'MODERATE';
+        label = 'Moderate';
+        rangeText = `Moderate (${qLim}–${mLim} dB(A))`;
+        circleClass = 'w-48 h-48 rounded-full border-8 border-amber-500 bg-amber-50 flex flex-col items-center justify-center text-center px-4 transition-all duration-300';
+        labelClass = 'text-2xl font-extrabold text-amber-800';
+      }
+
+      // Safe-Matching Rule: Matches Quiet filter ONLY if Busy Hour AND Quiet AND NOT Near Limit (< 47.0 dB(A))
+      const qualifiesForQuietFilter = (timeWindow === 'BUSY') && (categoryKey === 'QUIET') && (!isNearLimit);
+
+      return {
+        categoryKey,
+        label,
+        rangeText,
+        circleClass,
+        labelClass,
+        isNearLimit,
+        qualifiesForQuietFilter
+      };
+    }
+
+    function highlightRangeCard(activeKey) {
+      const base = 'border border-slate-200 rounded-xl p-3 bg-slate-50/70 transition';
+      cardQuiet.className = activeKey === 'QUIET' ? 'border-2 border-emerald-500 rounded-xl p-3 bg-emerald-50 shadow-sm transition' : base;
+      cardModerate.className = activeKey === 'MODERATE' ? 'border-2 border-amber-500 rounded-xl p-3 bg-amber-50 shadow-sm transition' : base;
+      cardLoud.className = activeKey === 'LOUD' ? 'border-2 border-rose-500 rounded-xl p-3 bg-rose-50 shadow-sm transition' : base;
+    }
+
+    // ============================================================================
+    // 5. LIVE CANVAS 2D ACOUSTIC SPARKLINE CHART (L_AF vs L_Aeq + ±3 dB BANDS)
+    // ============================================================================
+    function drawAcousticChart() {
+      const rect = acousticChart.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(300, Math.floor(rect.width));
+      const h = Math.max(180, Math.floor(rect.height));
+      if (acousticChart.width !== w * dpr || acousticChart.height !== h * dpr) {
+        acousticChart.width = w * dpr;
+        acousticChart.height = h * dpr;
+      }
+      const ctx = acousticChart.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // Dark studio background
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, w, h);
+
+      const padL = 42, padR = 14, padT = 16, padB = 24;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+      const minDb = 25, maxDb = 95;
+      const durSec = CONFIG.DURATION_MS / 1000;
+
+      const dbToY = db => {
+        const clamped = Math.max(minDb, Math.min(maxDb, db));
+        return padT + plotH * (1 - (clamped - minDb) / (maxDb - minDb));
+      };
+      const tToX = t => padL + plotW * Math.min(1, Math.max(0, t / durSec));
+
+      // Shaded ±3 dB Near-Limit Guard Bands (47–53 and 67–73 dB(A))
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.14)';
+      ctx.fillRect(padL, dbToY(53), plotW, dbToY(47) - dbToY(53));
+      ctx.fillRect(padL, dbToY(73), plotW, dbToY(67) - dbToY(73));
+
+      // Grid lines & Y-axis dB labels
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      [30, 40, 50, 60, 70, 80, 90].forEach(db => {
+        const y = dbToY(db);
+        ctx.strokeStyle = (db === 50 || db === 70) ? 'rgba(251, 191, 36, 0.65)' : 'rgba(51, 65, 85, 0.55)';
+        ctx.lineWidth = (db === 50 || db === 70) ? 1.2 : 1;
+        ctx.setLineDash((db === 50 || db === 70) ? [4, 4] : []);
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(padL + plotW, y);
+        ctx.stroke();
+
+        ctx.fillStyle = (db === 50 || db === 70) ? '#fbbf24' : '#94a3b8';
+        ctx.fillText(`${db}`, padL - 6, y);
+      });
+      ctx.setLineDash([]);
+
+      // X-axis time ticks
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#94a3b8';
+      const stepSec = durSec <= 10 ? 2 : 5;
+      for (let t = 0; t <= durSec; t += stepSec) {
+        const x = tToX(t);
+        ctx.fillText(`${t}s`, x, padT + plotH + 6);
+      }
+
+      // Zone labels on right edge
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'rgba(52, 211, 153, 0.7)';
+      ctx.fillText('QUIET (<50)', padL + plotW - 4, dbToY(40));
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.7)';
+      ctx.fillText('MODERATE (50–70)', padL + plotW - 4, dbToY(60));
+      ctx.fillStyle = 'rgba(251, 113, 133, 0.7)';
+      ctx.fillText('LOUD (>70)', padL + plotW - 4, dbToY(82));
+
+      if (chartHistory.length < 2) {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillText('Start a measurement to plot real-time IEC 61672-1 L_AF & L_Aeq', padL + plotW / 2, padT + plotH / 2);
+        return;
+      }
+
+      // Plot L_AF (125 ms Fast instantaneous curve)
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      chartHistory.forEach((pt, idx) => {
+        const x = tToX(pt.tSec);
+        const y = dbToY(pt.laf);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Plot Cumulative L_Aeq curve
+      ctx.strokeStyle = '#818cf8';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      chartHistory.forEach((pt, idx) => {
+        const x = tToX(pt.tSec);
+        const y = dbToY(pt.laeq);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    // ============================================================================
+    // 6. AUDIO STREAM LIFECYCLE & MEASUREMENT EXECUTION
+    // ============================================================================
+    function releaseAudioResources() {
+      if (fallbackTimer) { clearInterval(fallbackTimer); fallbackTimer = null; }
+      if (simTimer) { clearInterval(simTimer); simTimer = null; }
+      if (calibTimer) { clearInterval(calibTimer); calibTimer = null; }
+      if (workletNode) {
+        try { workletNode.port.onmessage = null; workletNode.disconnect(); } catch (e) {}
+        workletNode = null;
+      }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch(() => {});
+        audioContext = null;
+      }
+      analyserNode = null;
+      isMeasuring = false;
+      isCalibrating = false;
+      startMeasureBtn.disabled = false;
+      demoSimBtn.disabled = false;
+      stopMeasureBtn.disabled = true;
+      runAutoCalibBtn.disabled = false;
+    }
+
+    async function setupAudioGraph(onChunkCallback) {
+      if (!window.isSecureContext) {
+        throw new Error('HTTPS Required: Mobile browsers block microphone access on local file:// or plain http:// pages. Host this file on Vercel or Netlify Drop (https://) and open the HTTPS link.');
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Browser getUserMedia API unavailable. Open this HTTPS page in Chrome (Android) or Safari (iOS) rather than an in-app viewer.');
+      }
+
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            autoGainControl: false,
+            noiseSuppression: false,
+            echoCancellation: false
+          },
+          video: false
+        });
+      } catch (constraintErr) {
+        if (constraintErr && (constraintErr.name === 'OverconstrainedError' || constraintErr.name === 'TypeError')) {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } else {
+          throw constraintErr;
+        }
+      }
+
+      const track = mediaStream.getAudioTracks()[0];
+      const settings = track && track.getSettings ? track.getSettings() : {};
+      diagAgc.textContent = settings.autoGainControl === false ? 'OFF (Verified)' : 'Req: OFF';
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      audioContext = new AudioCtx();
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
+      const sourceNode = audioContext.createMediaStreamSource(mediaStream);
+      let chainOutput = sourceNode;
+
+      // Apply IEC 61672-1 6-stage A-Weighting IIR filter chain when enabled
+      if (CONFIG.USE_A_WEIGHTING && typeof audioContext.createIIRFilter === 'function') {
+        const aFilter = buildAWeightingChain(audioContext);
+        sourceNode.connect(aFilter.input);
+        chainOutput = aFilter.output;
+        dspFilterBadge.textContent = `Filter: IEC 61672-1 A-Weighting (${(aFilter.sampleRate / 1000).toFixed(1)} kHz)`;
+      } else {
+        dspFilterBadge.textContent = `Filter: Unweighted dB(Z) (${(audioContext.sampleRate / 1000).toFixed(1)} kHz)`;
+      }
+
+      // Attempt sample-accurate AudioWorklet first; fall back cleanly to fast AnalyserNode if blocked
+      if (audioContext.audioWorklet && typeof URL.createObjectURL === 'function') {
+        try {
+          const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
+          const blobUrl = URL.createObjectURL(blob);
+          await audioContext.audioWorklet.addModule(blobUrl);
+          URL.revokeObjectURL(blobUrl);
+
+          workletNode = new AudioWorkletNode(audioContext, 'laeq-processor');
+          // Connect to a muted sink so Chrome/Safari actively pull audio frames without playing any sound
+          const silentGain = audioContext.createGain();
+          silentGain.gain.value = 0.0;
+          chainOutput.connect(workletNode);
+          workletNode.connect(silentGain);
+          silentGain.connect(audioContext.destination);
+
+          engineBadge.textContent = `Engine: AudioWorklet (100% Samples)`;
+          workletNode.port.onmessage = event => {
+            onChunkCallback(event.data.energy, event.data.samples);
+          };
+          return;
+        } catch (workletErr) {
+          // Graceful fallback below
+        }
+      }
+
+      // Fallback: High-rate AnalyserNode (32 ms polling synced to 2048-sample buffer)
+      analyserNode = audioContext.createAnalyser();
+      analyserNode.fftSize = 2048;
+      chainOutput.connect(analyserNode);
+      const buf = new Float32Array(analyserNode.fftSize);
+      engineBadge.textContent = 'Engine: AnalyserNode Fallback (32 ms)';
+
+      fallbackTimer = setInterval(() => {
+        if (!analyserNode) return;
+        analyserNode.getFloatTimeDomainData(buf);
+        let energy = 0.0;
+        for (let i = 0; i < buf.length; i++) energy += buf[i] * buf[i];
+        onChunkCallback(energy, buf.length);
+      }, 32);
+    }
+
+    function beginMeasurementUI(modeLabel) {
+      isMeasuring = true;
+      startMeasureBtn.disabled = true;
+      demoSimBtn.disabled = true;
+      stopMeasureBtn.disabled = false;
+      errorBox.classList.add('hidden');
+      decisionBanner.classList.add('hidden');
+      nearLimitBadge.classList.add('hidden');
+      labDbBigReadout.classList.add('hidden');
+      highlightRangeCard(null);
+
+      totalEnergySum = 0.0;
+      totalSampleCount = 0;
+      minLafDb = Infinity;
+      maxLafDb = -Infinity;
+      chartHistory = [];
+      startTimeMs = performance.now();
+
+      statusDot.className = 'w-2 h-2 rounded-full bg-sky-500 animate-ping';
+      statusText.textContent = modeLabel;
+      meterCircle.className = 'w-48 h-48 rounded-full border-8 border-sky-400 bg-sky-50 flex flex-col items-center justify-center text-center px-4 pulse-ring';
+      rangeLabel.className = 'text-lg font-extrabold text-sky-900';
+      rangeLabel.textContent = 'Sampling...';
+      rangeSubtext.textContent = `Integrating L_Aeq (${CONFIG.DURATION_MS / 1000}s)`;
+      drawAcousticChart();
+    }
+
+    function ingestEnergyChunk(chunkEnergy, chunkSamples) {
+      if (!isMeasuring) return;
+      const elapsedMs = performance.now() - startTimeMs;
+      const clampedMs = Math.min(elapsedMs, CONFIG.DURATION_MS);
+      const tSec = clampedMs / 1000;
+
+      totalEnergySum += chunkEnergy;
+      totalSampleCount += chunkSamples;
+
+      const chunkMeanSq = chunkEnergy / Math.max(1, chunkSamples);
+      const totalMeanSq = totalEnergySum / Math.max(1, totalSampleCount);
+
+      const lafDbfs = energyToDbfs(chunkMeanSq);
+      const laeqDbfs = energyToDbfs(totalMeanSq);
+
+      const lafDb = lafDbfs + CONFIG.CALIBRATION_OFFSET_DB;
+      const laeqDb = laeqDbfs + CONFIG.CALIBRATION_OFFSET_DB;
+
+      if (lafDb < minLafDb) minLafDb = lafDb;
+      if (lafDb > maxLafDb) maxLafDb = lafDb;
+
+      chartHistory.push({ tSec, laf: lafDb, laeq: laeqDb });
+
+      const pct = (clampedMs / CONFIG.DURATION_MS) * 100;
+      progressBar.style.width = `${pct.toFixed(1)}%`;
+      timerLabel.textContent = `Elapsed: ${tSec.toFixed(1)} / ${(CONFIG.DURATION_MS / 1000).toFixed(1)} s`;
+      sampleCountLabel.textContent = `Samples: ${totalSampleCount.toLocaleString()}`;
+
+      diagLaeq.textContent = `${laeqDb.toFixed(1)} dB(A)`;
+      diagLaf.textContent = `${lafDb.toFixed(1)} dB(A)`;
+      diagMinMax.textContent = `${minLafDb.toFixed(1)} / ${maxLafDb.toFixed(1)}`;
+      diagDbfs.textContent = `${laeqDbfs.toFixed(1)} dBFS`;
+
+      if (CONFIG.MODE === 'LAB') {
+        labDbBigReadout.classList.remove('hidden');
+        labDbBigReadout.textContent = `${laeqDb.toFixed(1)} dB(A)`;
+      }
+
+      drawAcousticChart();
+
+      if (elapsedMs >= CONFIG.DURATION_MS) {
+        completeMeasurement(laeqDb, laeqDbfs);
+      }
+    }
+
+    function completeMeasurement(finalLaeqDb, finalDbfs) {
+      releaseAudioResources();
+
+      const selectedVenue = venueSelect.value;
+      const selectedWindow = windowSelect.value;
+      const windowLabel = selectedWindow === 'BUSY' ? 'Busy Hour' : 'Calm Hour';
+      const deviceLabel = deviceProfileInput.value.trim() || 'Browser Device';
+      const result = classifyNoise(finalLaeqDb, selectedWindow);
+
+      meterCircle.className = result.circleClass;
+      rangeLabel.className = result.labelClass;
+      rangeLabel.textContent = result.label;
+      rangeSubtext.textContent = result.rangeText;
+
+      if (CONFIG.MODE === 'LAB') {
+        labDbBigReadout.classList.remove('hidden');
+        labDbBigReadout.textContent = `${finalLaeqDb.toFixed(1)} dB(A)`;
+      } else {
+        labDbBigReadout.classList.add('hidden');
+      }
+
+      if (result.isNearLimit) {
+        nearLimitBadge.classList.remove('hidden');
+      } else {
+        nearLimitBadge.classList.add('hidden');
+      }
+
+      statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+      statusText.textContent = 'Completed (Mic Closed)';
+      highlightRangeCard(result.categoryKey);
+
+      // Update Safe-Matching Banner
+      decisionBanner.classList.remove('hidden');
+      if (result.qualifiesForQuietFilter) {
+        quietMatchBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800';
+        quietMatchBadge.textContent = 'Quiet Filter: YES (Safe Match)';
+        decisionBanner.className = 'rounded-xl p-3.5 text-xs space-y-1 border bg-emerald-50 border-emerald-200 text-emerald-950';
+        decisionTitle.textContent = `${selectedVenue} (${windowLabel}) — Matches "Quiet" Filter`;
+        decisionDesc.textContent = `Busy-hour L_Aeq is clearly below 47.0 dB(A) (outside the 47–53 dB(A) near-limit guard band).`;
+      } else {
+        quietMatchBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-900';
+        quietMatchBadge.textContent = 'Quiet Filter: NO';
+        decisionBanner.className = 'rounded-xl p-3.5 text-xs space-y-1 border bg-amber-50 border-amber-200 text-amber-950';
+        decisionTitle.textContent = `${selectedVenue} (${windowLabel}) — Does Not Match "Quiet" Filter`;
+        if (selectedWindow !== 'BUSY') {
+          decisionDesc.textContent = 'Recorded during a Calm Hour. A venue matches the "Quiet" filter only if its Busy-Hour reading is Quiet and not Near Limit.';
+        } else if (result.isNearLimit && result.categoryKey === 'QUIET') {
+          decisionDesc.textContent = 'Reading is within the ±3 dB Near-Limit band (47–53 dB(A)). Under Sena\'s safe-matching rule, near-limit readings do not qualify as Quiet.';
+        } else {
+          decisionDesc.textContent = `Classified as ${result.rangeText}${result.isNearLimit ? ' [Near Limit]' : ''}.`;
+        }
+      }
+
+      // Check optional reference NIOSH value for Week 3 error calculation
+      const refVal = parseFloat(refNioshInput.value);
+      const hasRef = !Number.isNaN(refVal);
+      let refRangeText = '--';
+      let deltaStr = '--';
+      let rangeAgreed = null;
+
+      if (hasRef) {
+        const refClass = classifyNoise(refVal, selectedWindow);
+        refRangeText = refClass.label;
+        const delta = finalLaeqDb - refVal;
+        deltaStr = `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} dB`;
+        rangeAgreed = (refClass.categoryKey === result.categoryKey);
+      }
+
+      sessionLogs.unshift({
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        date: new Date().toISOString().slice(0, 10),
+        venue: selectedVenue,
+        window: windowLabel,
+        device: deviceLabel,
+        phoneDb: finalLaeqDb.toFixed(1),
+        dbfs: finalDbfs.toFixed(1),
+        refDb: hasRef ? refVal.toFixed(1) : '--',
+        refRange: refRangeText,
+        delta: deltaStr,
+        range: result.label,
+        nearLimit: result.isNearLimit ? 'Yes' : 'No',
+        rangeAgreed,
+        quietMatch: result.qualifiesForQuietFilter ? 'Yes' : 'No'
+      });
+
+      renderSessionLogs();
+    }
+
+    async function startLiveMeasurement() {
+      if (isMeasuring || isCalibrating) return;
+      beginMeasurementUI('Live IEC 61672-1 Sampling...');
+      try {
+        await setupAudioGraph((energy, samples) => {
+          ingestEnergyChunk(energy, samples);
+        });
+      } catch (err) {
+        releaseAudioResources();
+        errorBox.classList.remove('hidden');
+        errorTitle.textContent = 'Microphone Access Denied or Unavailable';
+        errorDesc.textContent = `${err && err.message ? err.message : 'Permission Error'}. Use "Simulate Acoustic Profile" below to verify all DSP, Near-Limit, and Quiet-Filter rules.`;
+        statusDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        statusText.textContent = 'Mic Error';
+      }
+    }
+
+    // 4 Realistic Simulation Profiles
+    let simIdx = 0;
+    const SIM_PROFILES = [
+      { label: 'Clear Quiet Library (~43.5 dB(A))', baseDb: 43.5, jitterDb: 1.4 },
+      { label: 'Near-Limit Quiet (~48.4 dB(A) — Inside 47–53 Band)', baseDb: 48.4, jitterDb: 0.9 },
+      { label: 'Moderate Study Hall (~61.2 dB(A))', baseDb: 61.2, jitterDb: 2.2 },
+      { label: 'Loud Dining Hall Lunch (~76.8 dB(A))', baseDb: 76.8, jitterDb: 2.8 }
+    ];
+
+    function startSimulatedMeasurement() {
+      if (isMeasuring || isCalibrating) return;
+      const profile = SIM_PROFILES[simIdx % SIM_PROFILES.length];
+      simIdx += 1;
+      diagAgc.textContent = 'Simulation';
+      engineBadge.textContent = 'Engine: Synthetic L_Aeq Simulator';
+      beginMeasurementUI(profile.label);
+
+      simTimer = setInterval(() => {
+        const instDb = profile.baseDb + (Math.random() * 2 - 1) * profile.jitterDb;
+        const dbfs = instDb - CONFIG.CALIBRATION_OFFSET_DB;
+        const meanSq = Math.pow(10, dbfs / 10);
+        const syntheticSamples = 6000; // 125 ms at 48 kHz
+        ingestEnergyChunk(meanSq * syntheticSamples, syntheticSamples);
+      }, 125);
+    }
+
+    // ============================================================================
+    // 7. 1-POINT GUIDED CALIBRATION WIZARD (5-SECOND REFERENCE MATCH)
+    // ============================================================================
+    async function runAutoCalibration() {
+      if (isMeasuring || isCalibrating) return;
+      const targetRefDb = parseFloat(calibRefInput.value);
+      if (Number.isNaN(targetRefDb) || targetRefDb < 25 || targetRefDb > 120) {
+        calibProgressBox.classList.remove('hidden');
+        calibProgressText.textContent = 'Please enter a valid NIOSH reference LAeq between 25 and 120 dB(A).';
+        return;
+      }
+
+      isCalibrating = true;
+      runAutoCalibBtn.disabled = true;
+      calibProgressBox.classList.remove('hidden');
+      calibProgressBar.style.width = '0%';
+      calibProgressText.textContent = 'Starting 5.0s A-weighted calibration against NIOSH reference...';
+
+      let calEnergy = 0.0;
+      let calSamples = 0;
+      const calStart = performance.now();
+      const CAL_DURATION = 5000;
+
+      try {
+        await setupAudioGraph((energy, samples) => {
+          if (!isCalibrating) return;
+          calEnergy += energy;
+          calSamples += samples;
+          const elapsed = performance.now() - calStart;
+          const pct = Math.min(100, (elapsed / CAL_DURATION) * 100);
+          calibProgressBar.style.width = `${pct.toFixed(0)}%`;
+
+          const currentDbfs = energyToDbfs(calEnergy / Math.max(1, calSamples));
+          calibProgressText.textContent = `Measuring A-dBFS: ${currentDbfs.toFixed(1)} dBFS (${(Math.min(elapsed, CAL_DURATION) / 1000).toFixed(1)} / 5.0 s)`;
+
+          if (elapsed >= CAL_DURATION) {
+            releaseAudioResources();
+            const computedOffset = targetRefDb - currentDbfs;
+            saveCalibration(computedOffset, true);
+            calibProgressText.textContent = `Calibration Complete! Computed Offset: +${computedOffset.toFixed(2)} dB (Matched to ${targetRefDb.toFixed(1)} dB(A)).`;
+          }
+        });
+      } catch (err) {
+        releaseAudioResources();
+        calibProgressText.textContent = `Microphone unavailable (${err && err.message ? err.message : 'Error'}). You can enter a manual offset instead.`;
+      }
+    }
+
+    // ============================================================================
+    // 8. SESSION LOG RENDERING & CSV EXPORT (H3_Ali_SesKarsilastirma.csv)
+    // ============================================================================
+    function renderSessionLogs() {
+      const refTrials = sessionLogs.filter(x => x.rangeAgreed !== null);
+      const agreedCount = refTrials.filter(x => x.rangeAgreed === true).length;
+      const agreeStr = refTrials.length > 0
+        ? `${agreedCount}/${refTrials.length} (${((agreedCount / refTrials.length) * 100).toFixed(0)}%)`
+        : '--';
+      accuracySummary.textContent = `Trials Logged: ${sessionLogs.length} | Range Agreement: ${agreeStr}`;
+
+      if (sessionLogs.length === 0) {
+        sessionLogBody.innerHTML = '<tr><td colspan="8" class="py-4 px-2.5 text-center text-slate-400">No measurements recorded yet. Run a live 10s/30s test or a simulated profile above.</td></tr>';
+        return;
+      }
+
+      sessionLogBody.innerHTML = sessionLogs.map(item => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-2.5 font-mono text-slate-600">${item.time}</td>
+          <td class="py-2 px-2.5">
+            <div class="font-semibold text-slate-900">${item.venue}</div>
+            <div class="text-[11px] text-slate-500">${item.window}</div>
+          </td>
+          <td class="py-2 px-2.5 text-slate-700">${item.device}</td>
+          <td class="py-2 px-2.5 font-mono font-semibold text-slate-900">${item.phoneDb} dB(A)</td>
+          <td class="py-2 px-2.5 font-mono text-slate-700">${item.refDb !== '--' ? item.refDb + ' dB(A)' : '--'}</td>
+          <td class="py-2 px-2.5 font-mono text-slate-700">${item.delta}</td>
+          <td class="py-2 px-2.5">
+            <span class="font-semibold text-slate-800">${item.range}</span>
+            ${item.nearLimit === 'Yes' ? '<span class="ml-1 text-[10px] font-bold bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded">Near Limit</span>' : ''}
+          </td>
+          <td class="py-2 px-2.5 text-[11px]">
+            ${item.rangeAgreed !== null ? `<div class="font-semibold ${item.rangeAgreed ? 'text-emerald-700' : 'text-rose-700'}">Ref Match: ${item.rangeAgreed ? 'Yes' : 'No'}</div>` : ''}
+            <div class="${item.quietMatch === 'Yes' ? 'text-emerald-700 font-semibold' : 'text-slate-500'}">Quiet Filter: ${item.quietMatch}</div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function exportLogsAsCsv() {
+      if (sessionLogs.length === 0) {
+        errorBox.classList.remove('hidden');
+        errorTitle.textContent = 'No Measurements to Export';
+        errorDesc.textContent = 'Record at least one live or simulated measurement before exporting CSV.';
+        return;
+      }
+      const headers = ['Date', 'Time', 'Venue', 'Window', 'Device', 'Phone_LAeq_dBA', 'Raw_A_dBFS', 'Ref_NIOSH_dBA', 'Delta_dB', 'Phone_Range', 'Ref_Range', 'Near_Limit', 'Range_Match', 'Quiet_Filter_Eligible'];
+      const rows = sessionLogs.map(r => [
+        r.date, r.time, `"${r.venue}"`, r.window, `"${r.device}"`, r.phoneDb, r.dbfs, r.refDb, r.delta, r.range, r.refRange, r.nearLimit,
+        r.rangeAgreed === null ? 'N/A' : (r.rangeAgreed ? 'Yes' : 'No'),
+        r.quietMatch
+      ].join(','));
+      const csvContent = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'H3_Ali_SesKarsilastirma.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ============================================================================
+    // 9. UI MODE SWITCHING & EVENT LISTENERS
+    // ============================================================================
+    function setAppMode(mode) {
+      if (isMeasuring) return;
+      CONFIG.MODE = mode;
+      if (mode === 'LAB') {
+        CONFIG.DURATION_MS = 30000;
+        modeLabBtn.className = 'px-3 py-1.5 rounded-md font-semibold bg-sky-600 text-white transition';
+        modeUserBtn.className = 'px-3 py-1.5 rounded-md font-medium text-slate-300 hover:text-white transition';
+        meterHeading.textContent = 'L_Aeq,30s Field Protocol Mode';
+        meterSubheading.textContent = 'Week 3 Calibration & 27-Trial Comparison Mode';
+        startMeasureBtn.textContent = 'Measure Ambient Sound (30s)';
+        timerLabel.textContent = 'Elapsed: 0.0 / 30.0 s';
+      } else {
+        CONFIG.DURATION_MS = 10000;
+        modeUserBtn.className = 'px-3 py-1.5 rounded-md font-semibold bg-sky-600 text-white transition';
+        modeLabBtn.className = 'px-3 py-1.5 rounded-md font-medium text-slate-300 hover:text-white transition';
+        meterHeading.textContent = 'L_Aeq,10s Assessment';
+        meterSubheading.textContent = 'Public User Mode — Categorical Range Only';
+        startMeasureBtn.textContent = 'Measure Ambient Sound (10s)';
+        timerLabel.textContent = 'Elapsed: 0.0 / 10.0 s';
+        labDbBigReadout.classList.add('hidden');
+      }
+      drawAcousticChart();
+    }
+
+    modeUserBtn.addEventListener('click', () => setAppMode('USER'));
+    modeLabBtn.addEventListener('click', () => setAppMode('LAB'));
+
+    openCalibModalBtn.addEventListener('click', () => {
+      calibModal.classList.remove('hidden');
+      calibProgressBox.classList.add('hidden');
+    });
+    closeCalibModalBtn.addEventListener('click', () => {
+      if (isCalibrating) releaseAudioResources();
+      calibModal.classList.add('hidden');
+    });
+    saveManualOffsetBtn.addEventListener('click', () => {
+      const val = parseFloat(manualOffsetInput.value);
+      if (!Number.isNaN(val)) {
+        saveCalibration(val, true);
+        calibModal.classList.add('hidden');
+      }
+    });
+    resetOffsetBtn.addEventListener('click', () => {
+      saveCalibration(94.0, false);
+    });
+    runAutoCalibBtn.addEventListener('click', runAutoCalibration);
+
+    startMeasureBtn.addEventListener('click', startLiveMeasurement);
+    stopMeasureBtn.addEventListener('click', () => {
+      releaseAudioResources();
+      statusDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+      statusText.textContent = 'Cancelled';
+      meterCircle.className = 'w-48 h-48 rounded-full border-8 border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-center px-4 transition-all duration-300';
+      rangeLabel.className = 'text-xl font-extrabold text-slate-700';
+      rangeLabel.textContent = 'Awaiting Input';
+      rangeSubtext.textContent = 'Press Start to sample';
+    });
+    demoSimBtn.addEventListener('click', startSimulatedMeasurement);
+
+    aWeightToggle.addEventListener('change', () => {
+      CONFIG.USE_A_WEIGHTING = aWeightToggle.checked;
+      dspFilterBadge.textContent = CONFIG.USE_A_WEIGHTING
+        ? 'Filter: IEC 61672-1 A-Weighting (6-Stage IIR)'
+        : 'Filter: Unweighted dB(Z)';
+    });
+
+    exportCsvBtn.addEventListener('click', exportLogsAsCsv);
+    clearLogBtn.addEventListener('click', () => {
+      sessionLogs.length = 0;
+      renderSessionLogs();
+    });
+
+    window.addEventListener('resize', drawAcousticChart);
+
+    // Initialize on load
+    loadSavedCalibration();
+    setAppMode('USER');
+    drawAcousticChart();
+  </script>
+</body>
+</html>
